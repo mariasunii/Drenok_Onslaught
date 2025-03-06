@@ -50,10 +50,29 @@ int main()
 	setupIO();
 	//putImage(20,80,12,16,dg1,0,0);
 	// target is deco3 for now
-	putImage(targetx,targety,16,13,deco3,0,0);
-	putImage(x,y,16,16,kara1,0,0);
+
+	printTextX2("Drenok", 5, 20, RGBToWord(0xff, 0xff, 0), 0);
+	printTextX2("Onslaught", 5, 40, RGBToWord(0xff, 0xff, 0), 0);
+	printTextX2("Press down", 5, 80, RGBToWord(0xff, 0xff, 0), 0);
+	printTextX2("to start", 5, 100, RGBToWord(0xff, 0xff, 0), 0);
+
+	// Wait for the down button to be pressed
+	while ((GPIOA->IDR & (1 << 11)) != 0)
+	{
+		// Wait for button press
+	}
+
+	// Clear the text before continuing
+	fillRectangle(5, 20, 200, 100, 0);  // Clear text area by drawing a black rectangle
+
+	// Wait a bit to debounce the button
+	delay(100);
+
 	while(1)
 	{
+		putImage(targetx,targety,16,13,deco3,0,0);
+		putImage(x,y,16,16,kara1,0,0);
+
 		hmoved = vmoved = 0;
 		hinverted = vinverted = 0;
 		if ((GPIOB->IDR & (1 << 4))==0) // right pressed
