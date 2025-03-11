@@ -1,5 +1,6 @@
 
 #include <stm32f031x6.h>
+#include <stdio.h>
 #include "display.h"
 void initClock(void);
 void initSysTick(void);
@@ -9,7 +10,8 @@ void setupIO();
 int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py);
 void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber);
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
-void shoot(uint16_t, uint16_t targetx, uint16_t targety);
+void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score);
+void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over);
 
 volatile uint32_t milliseconds;
 
@@ -34,115 +36,97 @@ const uint16_t kara2[]=
 
 int main()
 {
-	int hinverted = 0;
-	int vinverted = 0;
-	int toggle = 0;
-	int hmoved = 0;
-	int vmoved = 0;
-	uint16_t x = 50;
-	uint16_t y = 140;
-	uint16_t oldx = x;
-	uint16_t oldy = y;
-	uint16_t targetx = 50;
-	uint16_t targety = 0;
 	initClock();
 	initSysTick();
 	setupIO();
-	//putImage(20,80,12,16,dg1,0,0);
-	// target is deco3 for now
 
-	printTextX2("Drenok", 5, 20, RGBToWord(0xff, 0xff, 0), 0);
-	printTextX2("Onslaught", 5, 40, RGBToWord(0xff, 0xff, 0), 0);
-	printTextX2("Press down", 5, 80, RGBToWord(0xff, 0xff, 0), 0);
-	printTextX2("to start", 5, 100, RGBToWord(0xff, 0xff, 0), 0);
-
-	// Wait for the down button to be pressed
-	while ((GPIOA->IDR & (1 << 11)) != 0)
+	while(1) 
 	{
-		// Wait for button press
-	}
+		int hinverted = 0;
+		int vinverted = 0;
+		int toggle = 0;
+		int hmoved = 0;
+		int vmoved = 0;
+		uint16_t x = 50;
+		uint16_t y = 140;
+		uint16_t oldx = x;
+		uint16_t oldy = y;
+		uint16_t targetx = 0;
+		uint16_t targety = 10;
+		int target_direction = 1;
+		int game_over = 0;
+		uint16_t score = 0; 
 
-	// Clear the text before continuing
-	fillRectangle(5, 20, 200, 100, 0);  // Clear text area by drawing a black rectangle
+		fillRectangle(0,0,110,160,0);
+		printTextX2("Drenok", 5, 20, RGBToWord(0xff, 0xff, 0), 0);
+		printTextX2("Onslaught", 5, 40, RGBToWord(0xff, 0xff, 0), 0);
+		printTextX2("Press down", 5, 80, RGBToWord(0xff, 0xff, 0), 0);
+		printTextX2("to start", 5, 100, RGBToWord(0xff, 0xff, 0), 0);
 
-	// Wait a bit to debounce the button
-	delay(100);
-
-	while(1)
-	{
-		putImage(targetx,targety,16,13,deco3,0,0);
-		putImage(x,y,16,16,kara1,0,0);
-
-		hmoved = vmoved = 0;
-		hinverted = vinverted = 0;
-		if ((GPIOB->IDR & (1 << 4))==0) // right pressed
-		{					
-			if (x < 110)
-			{
-				x = x + 1;
-				hmoved = 1;
-				hinverted=0;
-			}						
-		}
-		if ((GPIOB->IDR & (1 << 5))==0) // left pressed
-		{			
-			
-			if (x > 10)
-			{
-				x = x - 1;
-				hmoved = 1;
-				hinverted=1;
-			}			
-		}
-		// if ( (GPIOA->IDR & (1 << 11)) == 0) // down pressed
-		// {
-		// 	if (y < 140)
-		// 	{
-		// 		y = y + 1;			
-		// 		vmoved = 1;
-		// 		vinverted = 0;
-		// 	}
-		// }
-		if ( (GPIOA->IDR & (1 << 8)) == 0) // up pressed
-		{			
-			// if (y > 16)
-			// {
-			// 	y = y - 1;
-			// 	vmoved = 1;
-			// 	vinverted = 1;
-			// }
-			shoot(x, targetx, targety);
-		}
-		//if ((vmoved) || (hmoved))
-		if (hmoved)
+		// Wait for the down button to be pressed
+		while ((GPIOA->IDR & (1 << 11)) != 0)
 		{
-			// only redraw if there has been some movement (reduces flicker)
-			fillRectangle(oldx,oldy,12,16,0);
-			oldx = x;
-			oldy = y;					
+			// Wait for button press
+		}
+
+		// Clear the text before continuing
+		fillRectangle(5, 20, 200, 100, 0);  // Clear text area by drawing a black rectangle
+
+		// Wait a bit to debounce the button
+		delay(100);
+		putImage(x,y,16,16,kara1,0,0);
+		while(game_over == 0)
+		{
+			char score_text[32];
+			snprintf(score_text, 32, "Score: %d", score);
+			printText(score_text, 0, 0, RGBToWord(0xff, 0xff, 0), 0);
+			alienMove(&targetx, &targety, &target_direction, &game_over);
+
+			hmoved = vmoved = 0;
+			hinverted = vinverted = 0;
+			if ((GPIOB->IDR & (1 << 4))==0) // right pressed
+			{					
+				if (x < 110)
+				{
+					x = x + 1;
+					hmoved = 1;
+					hinverted=0;
+				}						
+			}
+			if ((GPIOB->IDR & (1 << 5))==0) // left pressed
+			{			
+				if (x > 10)
+				{
+					x = x - 1;
+					hmoved = 1;
+					hinverted=1;
+				}			
+			}
+			if ( (GPIOA->IDR & (1 << 8)) == 0) // up pressed
+			{			
+				shoot(x, &targetx, &targety, &target_direction, &score);
+			}
 			if (hmoved)
 			{
-				if (toggle)
-					putImage(x,y,16,16,kara1,hinverted,0);
-				else
-					putImage(x,y,16,16,kara2,hinverted,0);
-				
-				toggle = toggle ^ 1;
-			}
-			else
-			{
-				putImage(x,y,16,13,deco3,0,vinverted);
-			}
-			// Now check for an overlap by checking to see if ANY of the 4 corners of deco are within the target area
-			// if (isInside(20,80,12,16,x,y) || isInside(20,80,12,16,x+12,y) || isInside(20,80,12,16,x,y+16) || isInside(20,80,12,16,x+12,y+16) )
-			// {
-			// 	printTextX2("GLUG!", 10, 20, RGBToWord(0xff,0xff,0), 0);
-			// }
-		}		
-		delay(50);
-	}
+				// only redraw if there has been some movement (reduces flicker)
+				fillRectangle(oldx,oldy,12,16,0);
+				oldx = x;
+				oldy = y;					
+				if (hmoved)
+				{
+					if (toggle)
+						putImage(x,y,16,16,kara1,hinverted,0);
+					else
+						putImage(x,y,16,16,kara2,hinverted,0);
+					toggle = toggle ^ 1;
+				}
+			}		
+			delay(50);
+		}
+	}	
 	return 0;
 }
+
 void initSysTick(void)
 {
 	SysTick->LOAD = 48000;
@@ -150,10 +134,12 @@ void initSysTick(void)
 	SysTick->VAL = 10;
 	__asm(" cpsie i "); // enable interrupts
 }
+
 void SysTick_Handler(void)
 {
 	milliseconds++;
 }
+
 void initClock(void)
 {
 // This is potentially a dangerous function as it could
@@ -182,6 +168,7 @@ void initClock(void)
         // set PLL as system clock source 
         RCC->CFGR |= (1<<1);
 }
+
 void delay(volatile uint32_t dly)
 {
 	uint32_t end_time = dly + milliseconds;
@@ -194,6 +181,7 @@ void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber)
 	Port->PUPDR = Port->PUPDR &~(3u << BitNumber*2); // clear pull-up resistor bits
 	Port->PUPDR = Port->PUPDR | (1u << BitNumber*2); // set pull-up bit
 }
+
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode)
 {
 	/*
@@ -204,6 +192,7 @@ void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode)
 	mode_value = mode_value | Mode;
 	Port->MODER = mode_value;
 }
+
 int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py)
 {
 	// checks to see if point px,py is within the rectange defined by x,y,w,h
@@ -234,17 +223,40 @@ void setupIO()
 	enablePullUp(GPIOA,8);
 }
 
-void shoot(uint16_t x, uint16_t targetx, uint16_t targety)
+void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score)
 {
 	for(uint16_t y = 124 ; y > 0; y--) 
 	{
 		putImage(x,y,12,16,dg1,0,0);
-		//oldy = y;
 		delay(2);
 		fillRectangle(x,y,12,16,0);
-		if (isInside(targetx,targety,12,16,x,y))
+		if (isInside(*targetx,*targety,12,16,x,y))
 		{
-			putImage(targetx,targety,16,16,kara2,0,0);
+			fillRectangle(*targetx,*targety,16,13,0);
+			*targetx = 0;
+			*targety = 10;
+			*target_direction = 1;
+			*score = *score + 1;
 		}
 	}
+}
+
+void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over) 
+{
+	uint16_t step = 10;
+
+	fillRectangle(*targetx,*targety,16,13,0);
+	*targetx = *targetx + (step * (*target_direction));//Move alien by 10/-10 (depending on its direction)
+	if ((*target_direction == 1 && *targetx > 90) || (*target_direction == -1 && *targetx < 20) )
+	{
+		*target_direction = -(*target_direction);//Change/Maintain target direction
+		*targety = *targety + 13;
+		if (*targety > 130) 
+		{
+			printTextX2("Game Over",0,60,RGBToWord(0xff,0xff,0), 0);
+			delay(1050);
+			*game_over = 1;
+		}
+	}
+	putImage(*targetx,*targety,16,13,deco3,0,0);
 }
