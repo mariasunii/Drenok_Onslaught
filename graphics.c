@@ -12,6 +12,7 @@ void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber);
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
 void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *lives, int *game_over);
 void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over);
+void showHearts(uint16_t *kara_lives);
 
 volatile uint32_t milliseconds;
 
@@ -32,6 +33,11 @@ const uint16_t kara1[]=
 const uint16_t kara2[]=
 {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4368,6168,6168,6168,4368,4368,6168,6168,0,0,0,0,0,0,0,4368,6168,6168,6168,6168,6168,6168,6168,6168,7712,0,0,0,0,0,0,4368,6168,6168,7712,7712,7712,7712,7712,7712,5912,0,0,0,0,0,0,4368,4368,4368,6168,6168,6168,6168,6168,6168,4368,0,0,0,0,0,0,4368,4368,6168,6168,6168,6168,6168,38748,6168,6168,0,0,0,0,0,0,4368,4368,6168,6168,6168,6168,38748,38748,38748,6168,0,0,0,0,0,4368,4368,4368,6168,38748,63454,17705,38748,63454,17705,6168,0,0,0,0,0,4368,4368,4368,4368,38748,56303,2108,38748,56303,2108,0,0,0,0,0,0,4368,4368,4368,0,38251,38748,38748,38748,38748,38251,0,0,0,0,0,0,0,4368,0,0,0,17705,62011,62011,17705,0,0,0,0,0,0,0,0,0,0,0,38748,17705,17705,17705,17705,38748,0,0,0,0,0,0,0,0,0,38748,38748,4368,4368,4368,4368,38748,38748,0,0,0,0,0,0,0,0,0,0,17705,17705,17705,17705,0,0,0,0,0,0,0,0,0,0,0,18233,18233,0,0,18233,0,0,0,0,0,0,0,0,0,0,0,5400,0,0,0,5400,0,0,0,0,0,0
+};
+
+const uint16_t heart[]=
+{
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,40224,40224,0,40224,40224,0,0,0,0,0,0,0,0,40224,40224,40224,40224,40224,40224,40224,0,0,0,0,0,0,0,40224,40224,40224,40224,40224,40224,40224,0,0,0,0,0,0,0,0,40224,40224,40224,40224,40224,0,0,0,0,0,0,0,0,0,0,40224,40224,40224,0,0,0,0,0,0,0,0,0,0,0,0,40224,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 };
 
 int main()
@@ -57,8 +63,9 @@ int main()
 		int game_over = 0;
 		uint16_t score = 0; 
 		uint16_t alien_lives = 5;
+		uint16_t kara_lives = 2;
 
-		fillRectangle(0,0,200,200,0);
+		fillRectangle(0,0,128,160,0);
 		printTextX2("Drenok", 5, 10, RGBToWord(0xff, 0xff, 0), 0);
 		printTextX2("Onslaught", 5, 30, RGBToWord(0xff, 0xff, 0), 0);
 		printTextX2("Press down", 5, 60, RGBToWord(0xff, 0xff, 0), 0);
@@ -81,6 +88,9 @@ int main()
 		delay(100);
 		putImage(x,y,16,16,kara1,0,0);
 		while(game_over == 0)
+
+		showHearts(&kara_lives);
+
 		{
 			char score_text[32];
 			snprintf(score_text, 32, "Score: %d", score);
@@ -226,6 +236,9 @@ void setupIO()
 	enablePullUp(GPIOB,5);
 	enablePullUp(GPIOA,11);
 	enablePullUp(GPIOA,8);
+	pinMode(GPIOA,0,1);
+	pinMode(GPIOA,1,1);
+	pinMode (GPIOB,1,1);
 }
 
 void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *alien_lives, int *game_over)
@@ -246,8 +259,12 @@ void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_directi
 		}
 		 if(*alien_lives==0)
 		 {
-			printTextX2("Game Over",0,60,RGBToWord(0xff,0xff,0), 0);
-			delay(950);
+			GPIOA->ODR |= (1<<1);
+			GPIOB->ODR |= (1<<1);
+			printTextX2("You Win",0,60,RGBToWord(0xff,0xff,0), 0);
+			delay(100);
+			GPIOB->ODR &=~(1<<1);
+			GPIOA->ODR &=~(1<<1);
 			*game_over = 1;
 		 }
 	}
@@ -265,10 +282,19 @@ void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int 
 		*targety = *targety + 13;
 		if (*targety > 130) 
 		{
+			GPIOA->ODR |=(1<<0);
 			printTextX2("Game Over",0,60,RGBToWord(0xff,0xff,0), 0);
 			delay(950);
+			GPIOA->ODR &=~(1<<0);
 			*game_over = 1;
+			
 		}
 	}
 	putImage(*targetx,*targety,16,13,deco3,0,0);
+}
+
+void showHearts(uint16_t *kara_lives)
+{
+	putImage(100,0,14,12,heart,0,0);
+	putImage(110,0,14,12,heart,0,0);
 }
