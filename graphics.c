@@ -10,13 +10,15 @@ void setupIO();
 int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py);
 void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber);
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
-void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *lives, int *game_over);
-void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over);
-void showHearts(uint16_t *kara_lives);
+void menu (void);
+void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *lives, int *game_over, uint16_t *win, uint16_t *target_speed);
+void showScore(uint16_t score);
+void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over, uint16_t *kara_lives, uint16_t *win, uint16_t *target_speed);
+void showHearts(uint16_t kara_lives);
 
 volatile uint32_t milliseconds;
 
-const uint16_t deco3[]= 
+const uint16_t alien[]= 
 {
 	65535,65535,65535,65535,65535,65535,65535,0,0,65535,65535,65535,65535,62893,65535,65535,5549,45188,55494,5549,45188,5549,45188,0,0,65535,5549,45188,62364,3171,5549,45188,45188,0,31975,65535,59986,47830,20347,0,0,65535,45188,59986,38317,65535,45188,59986,65535,65535,65535,65535,38317,65535,65535,0,0,65535,62364,38317,65535,62893,65535,65535,65535,23254,65535,59193,62893,65535,65535,0,0,62364,59193,45188,45188,20347,65535,65535,65535,27218,59986,63421,20347,65535,65535,0,0,65535,62893,20347,62893,65535,65535,5549,62364,3171,65535,65535,65535,65535,5549,0,0,65535,65535,65535,20347,65535,65535,45188,59986,62629,20347,0,0,0,0,59986,62629,20347,0,0,0,0,59986,20347,20347,65535,65535,0,0,0,0,20347,65535,65535,0,0,0,0,20347,65535,59986,62629,20347,0,0,0,0,59986,22461,65535,0,0,0,0,0,63950,20347,65535,65535,0,0,0,0,20347,65535,20347,0,0,0,0,59986,48887,59986,22461,65535,0,0,0,0,59986,22461,65535,0,0,0,0,20347,65535,20347,65535,20347,0,0,0,0,20347,65535,20347,0,0,0,0,0,64478
 };
@@ -64,39 +66,22 @@ int main()
 		uint16_t score = 0; 
 		uint16_t alien_lives = 5;
 		uint16_t kara_lives = 2;
+		uint16_t win = 2;//So that neither the "game over" or "you win" screen pop up when the game starts
+		uint16_t target_speed = 1;
 
-		fillRectangle(0,0,128,160,0);
-		printTextX2("Drenok", 5, 10, RGBToWord(0xff, 0xff, 0), 0);
-		printTextX2("Onslaught", 5, 30, RGBToWord(0xff, 0xff, 0), 0);
-		printTextX2("Press down", 5, 60, RGBToWord(0xff, 0xff, 0), 0);
-		printTextX2("to start", 5, 80, RGBToWord(0xff, 0xff, 0), 0);
-		printText("Shoot alien 5", 5, 100, RGBToWord(0xff, 0xff, 0), 0);
-		printText("times before", 5, 110, RGBToWord(0xff, 0xff, 0), 0 );
-		printText("it reaches you", 5, 120, RGBToWord(0xff, 0xff, 0), 0 );
-		
+		menu();
 
-		// Wait for the down button to be pressed
-		while ((GPIOA->IDR & (1 << 11)) != 0)
-		{
-			// Wait for button press
-		}
-
-		// Clear the text before continuing
-		fillRectangle(5, 10, 200, 160, 0);  // Clear text area by drawing a black rectangle
-
-		// Wait a bit to debounce the button
-		delay(100);
 		putImage(x,y,16,16,kara1,0,0);
+
+		showHearts(kara_lives);//Calls showHearts when kara_lives=2
+		
+		//Main game code:
 		while(game_over == 0)
-
-		showHearts(&kara_lives);
-
 		{
-			char score_text[32];
-			snprintf(score_text, 32, "Score: %d", score);
-			printText(score_text, 0, 0, RGBToWord(0xff, 0xff, 0), 0);
-			alienMove(&targetx, &targety, &target_direction, &game_over);
+			showScore(score);
+			alienMove(&targetx, &targety, &target_direction, &game_over, &kara_lives, &win, &target_speed);//Controls Alien Movement & losing the game
 
+			//Buttons:
 			hmoved = vmoved = 0;
 			hinverted = vinverted = 0;
 			if ((GPIOB->IDR & (1 << 4))==0) // right pressed
@@ -119,7 +104,7 @@ int main()
 			}
 			if ( (GPIOA->IDR & (1 << 8)) == 0) // up pressed
 			{			
-				shoot(x, &targetx, &targety, &target_direction, &score, &alien_lives, &game_over);
+				shoot(x, &targetx, &targety, &target_direction, &score, &alien_lives, &game_over, &win, &target_speed);//Controls shooting & winning game
 			}
 			if (hmoved)
 			{
@@ -138,9 +123,29 @@ int main()
 			}		
 			delay(50);
 		}
+
+		//Winning and losing responses:
+		fillRectangle(0,0,128,160,0);
+		if(win == 1)
+		{
+			GPIOA->ODR |= (1<<1);//Turn on green light
+			GPIOB->ODR |= (1<<1);//Turn on buzzer
+			printTextX2("You Win",0,60,RGBToWord(0xff,0xff,0), 0);
+			delay(2000);
+			GPIOA->ODR &=~ (1<<1);//Turn off Green Light
+			GPIOB->ODR &=~(1<<1);//Turn off Buzzer
+		}
+		else if(win == 0)
+		{
+			GPIOA->ODR |=(1<<0);//Turn on red light
+			printTextX2("Game Over",0,60,RGBToWord(0xff,0xff,0), 0);
+			delay(2000);
+			GPIOA->ODR &=~(1<<0);//turn off red light
+		}
 	}	
 	return 0;
 }
+
 
 void initSysTick(void)
 {
@@ -150,10 +155,12 @@ void initSysTick(void)
 	__asm(" cpsie i "); // enable interrupts
 }
 
+
 void SysTick_Handler(void)
 {
 	milliseconds++;
 }
+
 
 void initClock(void)
 {
@@ -184,6 +191,7 @@ void initClock(void)
         RCC->CFGR |= (1<<1);
 }
 
+
 void delay(volatile uint32_t dly)
 {
 	uint32_t end_time = dly + milliseconds;
@@ -191,11 +199,13 @@ void delay(volatile uint32_t dly)
 		__asm(" wfi "); // sleep
 }
 
+
 void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber)
 {
 	Port->PUPDR = Port->PUPDR &~(3u << BitNumber*2); // clear pull-up resistor bits
 	Port->PUPDR = Port->PUPDR | (1u << BitNumber*2); // set pull-up bit
 }
+
 
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode)
 {
@@ -207,6 +217,7 @@ void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode)
 	mode_value = mode_value | Mode;
 	Port->MODER = mode_value;
 }
+
 
 int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py)
 {
@@ -224,6 +235,7 @@ int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint
 	return rvalue;
 }
 
+
 void setupIO()
 {
 	RCC->AHBENR |= (1 << 18) + (1 << 17); // enable Ports A and B
@@ -236,65 +248,132 @@ void setupIO()
 	enablePullUp(GPIOB,5);
 	enablePullUp(GPIOA,11);
 	enablePullUp(GPIOA,8);
-	pinMode(GPIOA,0,1);
-	pinMode(GPIOA,1,1);
-	pinMode (GPIOB,1,1);
+	pinMode(GPIOA,0,1);//red light(pink wire)
+	pinMode(GPIOA,1,1);//green light(green wire)
+	pinMode (GPIOB,1,1);//buzzer
 }
 
-void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *alien_lives, int *game_over)
+
+void menu()
+{
+	fillRectangle(0,0,128,160,0);
+	
+	drawLine(1, 0, 127, 0, RGBToWord(0xff, 0xff, 0) );
+	drawLine(127, 0, 127, 100, RGBToWord(0xff, 0xff, 0) );
+	drawLine(127, 100, 1, 100, RGBToWord(0xff, 0xff, 0) );
+	drawLine(1, 100, 1, 0, RGBToWord(0xff, 0xff, 0) );
+	printTextX2("Drenok", 5, 10, RGBToWord(0xff, 0xff, 0), 0);
+	printTextX2("Onslaught", 5, 30, RGBToWord(0xff, 0xff, 0), 0);
+	printTextX2("Press down", 5, 60, RGBToWord(0xff, 0xff, 0), 0);
+	printTextX2("for rules", 5, 80, RGBToWord(0xff, 0xff, 0), 0);
+	printText("Shoot alien 5", 5, 120, RGBToWord(0xff, 0xff, 0), 0);
+	printText("times before", 5, 130, RGBToWord(0xff, 0xff, 0), 0 );
+	printText("it reaches you", 5, 140, RGBToWord(0xff, 0xff, 0), 0 );
+	
+
+	// Wait for the down button to be pressed
+	while ((GPIOA->IDR & (1 << 11)) != 0)
+	{
+		// Wait for button press
+	}
+
+	// Clear the text before continuing
+	fillRectangle(1, 0, 128, 160, 0);  
+
+	// Wait a bit to debounce the button
+	delay(300);
+
+	printText("Up->Shoot", 5, 10, RGBToWord(0xff, 0xff, 0), 0);
+	printText("Right->Move right", 5, 20, RGBToWord(0xff, 0xff, 0), 0);
+	printText("Left->Move left", 5, 30, RGBToWord(0xff, 0xff, 0), 0);
+	printTextX2("Press down", 5, 60, RGBToWord(0xff, 0xff, 0), 0);
+	printTextX2("to start", 5, 80, RGBToWord(0xff, 0xff, 0), 0);
+
+	// Wait for the down button to be pressed
+	while ((GPIOA->IDR & (1 << 11)) != 0)
+	{
+		// Wait for button press
+	}
+
+	// Clear the text before continuing
+	fillRectangle(5, 10, 200, 160, 0);  
+
+	// Wait a bit to debounce the button
+	delay(100);					
+				
+}
+
+
+void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *alien_lives, int *game_over, uint16_t *win, uint16_t *target_speed)
 {
 	for(uint16_t y = 124 ; y > 0; y--) 
 	{
-		putImage(x,y,12,16,dg1,0,0);
+		putImage(x,y,12,16,dg1,0,0);//Bullet movement
 		delay(2);
 		fillRectangle(x,y,12,16,0);
-		if (isInside(*targetx,*targety,12,16,x,y))
+		if (isInside(*targetx,*targety,12,16,x,y))//When bullet shoots alien
 		{
 			fillRectangle(*targetx,*targety,16,13,0);
 			*targetx = 0;
 			*targety = 10;
 			*target_direction = 1;
+			*target_speed = *target_speed + 1;
 			*score = *score + 1;
 			*alien_lives = *alien_lives - 1;
 		}
 		 if(*alien_lives==0)
 		 {
-			GPIOA->ODR |= (1<<1);
-			GPIOB->ODR |= (1<<1);
-			printTextX2("You Win",0,60,RGBToWord(0xff,0xff,0), 0);
-			delay(100);
-			GPIOB->ODR &=~(1<<1);
-			GPIOA->ODR &=~(1<<1);
+			*win = 1;//win game
 			*game_over = 1;
+			showScore(*score);//Prints 5(last value) before program exits function and restarts.
 		 }
 	}
 }
 
-void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over) 
+
+void showScore(uint16_t score)
+{
+	char score_text[32];
+	snprintf(score_text, 32, "Score: %d", score);//formats text and stores it in a string (score_text).
+	printText(score_text, 0, 0, RGBToWord(0xff, 0xff, 0), 0);
+}
+
+
+void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over, uint16_t *kara_lives, uint16_t *win, uint16_t *target_speed) 
 {
 	uint16_t step = 10;
 
 	fillRectangle(*targetx,*targety,16,13,0);
-	*targetx = *targetx + (step * (*target_direction));//Move alien by 10/-10 (depending on its direction)
+	*targetx = (*targetx + ((step+*target_speed) * (*target_direction)));//Move alien by 10/-10 (depending on its direction)
 	if ((*target_direction == 1 && *targetx > 90) || (*target_direction == -1 && *targetx < 20) )
 	{
 		*target_direction = -(*target_direction);//Change/Maintain target direction
-		*targety = *targety + 13;
+		*targety = *targety + *target_speed + 13;
 		if (*targety > 130) 
 		{
-			GPIOA->ODR |=(1<<0);
-			printTextX2("Game Over",0,60,RGBToWord(0xff,0xff,0), 0);
-			delay(950);
-			GPIOA->ODR &=~(1<<0);
-			*game_over = 1;
-			
+			*targetx = 0;
+			*targety = 10;
+			*target_direction = 1;
+			*kara_lives = *kara_lives - 1;
+			showHearts(*kara_lives);//calls showHearts when kara_lives changes
+
+			if (*kara_lives == 0)
+			{
+				*win = 0;//lose game
+				*game_over = 1;
+			}
 		}
 	}
-	putImage(*targetx,*targety,16,13,deco3,0,0);
+	putImage(*targetx,*targety,16,13,alien,0,0);
 }
 
-void showHearts(uint16_t *kara_lives)
+
+void showHearts(uint16_t kara_lives)
 {
-	putImage(100,0,14,12,heart,0,0);
-	putImage(110,0,14,12,heart,0,0);
+	fillRectangle(100, 0, 28, 12, 0);
+
+	for(int i = 0; i < kara_lives; i++)//kara_lives = 2 when called in main, kara_lives =1 and then 0 when called in alienMove
+	{
+		putImage(100 + i*10,0,14,12,heart,0,0);
+	}
 }
