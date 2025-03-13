@@ -6,6 +6,8 @@ Project Members: Áine, Maria, Hana*/
 #include <stm32f031x6.h>
 #include <stdio.h>
 #include "display.h"
+#include <sound.h>
+#include <musical_notes.h>
 void initClock(void);
 void initSysTick(void);
 void SysTick_Handler(void);
@@ -19,6 +21,8 @@ void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_directi
 void showScore(uint16_t score);
 void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over, uint16_t *kara_lives, uint16_t *win, uint16_t *target_speed);
 void showHearts(uint16_t kara_lives);
+void playWinTune(void);
+void playLoseTune(void);
 
 volatile uint32_t milliseconds;
 
@@ -51,6 +55,8 @@ int main()
 	initClock();
 	initSysTick();
 	setupIO();
+	initSound();
+
 
 	while(1) 
 	{
@@ -132,17 +138,18 @@ int main()
 		fillRectangle(0,0,128,160,0);
 		if(win == 1)
 		{
-			GPIOA->ODR |= (1<<1);//Turn on green light
-			GPIOB->ODR |= (1<<1);//Turn on buzzer
 			printTextX2("You Win",0,60,RGBToWord(0xff,0xff,0), 0);
+			GPIOA->ODR |= (1<<1);//Turn on green light
+			playWinTune();
 			delay(2000);
 			GPIOA->ODR &=~ (1<<1);//Turn off Green Light
-			GPIOB->ODR &=~(1<<1);//Turn off Buzzer
 		}
+
 		else if(win == 0)
 		{
-			GPIOA->ODR |=(1<<0);//Turn on red light
 			printTextX2("Game Over",0,60,RGBToWord(0xff,0xff,0), 0);
+			GPIOA->ODR |=(1<<0);//Turn on red light
+			playLoseTune();
 			delay(2000);
 			GPIOA->ODR &=~(1<<0);//turn off red light
 		}
@@ -389,4 +396,58 @@ void showHearts(uint16_t kara_lives)
 	{
 		putImage(100 + i*10,0,14,12,heart,0,0);
 	}
+}
+
+void playWinTune(void)
+{
+	playNote(C5);
+
+	delay(500);
+
+	playNote(E5);
+	
+	delay(500);
+
+	playNote(G5);
+
+	delay(500);
+
+	playNote(C6);
+
+	delay(500);
+
+	playNote(G5);
+
+	delay(500);
+
+	playNote(E5);
+
+	delay(500);
+
+	playNote(C5);
+
+	delay(500);
+
+	playNote(0);
+}
+
+void playLoseTune(void)
+{
+	playNote(A4);
+
+	delay(500);
+
+	playNote(F4);
+
+	delay(500);
+
+	playNote(E4);
+
+	delay(500);
+
+	playNote(C4);
+
+	delay(500);
+
+	playNote(0);
 }
