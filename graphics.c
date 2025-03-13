@@ -1,4 +1,8 @@
 
+/* Program Title: Drenok Onslaught Project
+Program Description: Alien shooting game
+Project Members: Áine, Maria, Hana*/
+
 #include <stm32f031x6.h>
 #include <stdio.h>
 #include "display.h"
@@ -11,7 +15,7 @@ int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint
 void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber);
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
 void menu (void);
-void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *lives, int *game_over, uint16_t *win, uint16_t *target_speed);
+void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *lives, int *game_over, uint16_t *win, uint16_t *target_speed, uint16_t kara_lives);
 void showScore(uint16_t score);
 void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int *game_over, uint16_t *kara_lives, uint16_t *win, uint16_t *target_speed);
 void showHearts(uint16_t kara_lives);
@@ -22,7 +26,7 @@ const uint16_t alien[]=
 {
 	65535,65535,65535,65535,65535,65535,65535,0,0,65535,65535,65535,65535,62893,65535,65535,5549,45188,55494,5549,45188,5549,45188,0,0,65535,5549,45188,62364,3171,5549,45188,45188,0,31975,65535,59986,47830,20347,0,0,65535,45188,59986,38317,65535,45188,59986,65535,65535,65535,65535,38317,65535,65535,0,0,65535,62364,38317,65535,62893,65535,65535,65535,23254,65535,59193,62893,65535,65535,0,0,62364,59193,45188,45188,20347,65535,65535,65535,27218,59986,63421,20347,65535,65535,0,0,65535,62893,20347,62893,65535,65535,5549,62364,3171,65535,65535,65535,65535,5549,0,0,65535,65535,65535,20347,65535,65535,45188,59986,62629,20347,0,0,0,0,59986,62629,20347,0,0,0,0,59986,20347,20347,65535,65535,0,0,0,0,20347,65535,65535,0,0,0,0,20347,65535,59986,62629,20347,0,0,0,0,59986,22461,65535,0,0,0,0,0,63950,20347,65535,65535,0,0,0,0,20347,65535,20347,0,0,0,0,59986,48887,59986,22461,65535,0,0,0,0,59986,22461,65535,0,0,0,0,20347,65535,20347,65535,20347,0,0,0,0,20347,65535,20347,0,0,0,0,0,64478
 };
-const uint16_t dg1[]=
+const uint16_t bullet[]=
 {
 	0,0,16142,16142,16142,16142,16142,16142,16142,16142,0,0,0,0,0,16142,16142,16142,16142,16142,16142,0,0,0,0,0,16142,16142,16142,16142,16142,16142,16142,16142,0,0,0,0,16142,16142,16142,1994,1994,16142,16142,16142,0,0,0,0,16142,16142,16142,1994,16142,1994,16142,16142,0,0,0,0,16142,16142,16142,1994,16142,1994,16142,16142,0,0,0,0,16142,16142,16142,1994,16142,1994,16142,16142,0,0,0,0,16142,16142,16142,1994,1994,16142,16142,16142,0,0,0,0,16142,16142,16142,16142,16142,16142,16142,16142,0,0,0,0,16142,16142,16142,1994,1994,1994,16142,16142,0,0,0,0,16142,16142,16142,1994,16142,16142,16142,16142,0,0,0,0,16142,16142,16142,1994,16142,16142,16142,16142,0,0,0,0,16142,16142,16142,1994,16142,1994,16142,16142,0,0,0,0,16142,16142,16142,1994,1994,1994,16142,16142,0,0,0,0,0,16142,16142,16142,16142,16142,16142,0,0,0,0,0,0,16142,16142,16142,16142,16142,16142,0,0,0,
 };
@@ -104,7 +108,7 @@ int main()
 			}
 			if ( (GPIOA->IDR & (1 << 8)) == 0) // up pressed
 			{			
-				shoot(x, &targetx, &targety, &target_direction, &score, &alien_lives, &game_over, &win, &target_speed);//Controls shooting & winning game
+				shoot(x, &targetx, &targety, &target_direction, &score, &alien_lives, &game_over, &win, &target_speed, kara_lives);//Controls shooting & winning game
 			}
 			if (hmoved)
 			{
@@ -304,14 +308,17 @@ void menu()
 }
 
 
-void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *alien_lives, int *game_over, uint16_t *win, uint16_t *target_speed)
+void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_direction, uint16_t *score, uint16_t *alien_lives, int *game_over, uint16_t *win, uint16_t *target_speed, uint16_t kara_lives)
 {
 	for(uint16_t y = 124 ; y > 0; y--) 
 	{
-		putImage(x,y,12,16,dg1,0,0);//Bullet movement
+		//Bullet momvement:
+		putImage(x,y,12,16,bullet,0,0);
 		delay(2);
 		fillRectangle(x,y,12,16,0);
-		if (isInside(*targetx,*targety,12,16,x,y))//When bullet shoots alien
+
+		//When bullet shoots alien
+		if (isInside(*targetx,*targety,12,16,x,y))
 		{
 			fillRectangle(*targetx,*targety,16,13,0);
 			*targetx = 0;
@@ -321,11 +328,17 @@ void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_directi
 			*score = *score + 1;
 			*alien_lives = *alien_lives - 1;
 		}
+
+		if (isInside(100, 0, 12, 16, x, y ) || isInside(110, 0, 12, 16, x, y ))//If bullet is inside same coordinates as hearts
+		{
+			showHearts(kara_lives);//Redraw hearts to stop bullet erasing:
+		}
+
 		 if(*alien_lives==0)
 		 {
 			*win = 1;//win game
 			*game_over = 1;
-			showScore(*score);//Prints 5(last value) before program exits function and restarts.
+			showScore(*score);//Prints 5(last value) before program exits function and restarts:
 		 }
 	}
 }
