@@ -72,7 +72,7 @@ int main()
 		uint16_t targetx = 0;
 		uint16_t targety = 10;
 		int target_direction = 1;
-		int game_over = 0;
+		int game_over = 0;//replayability
 		uint16_t score = 0; 
 		uint16_t alien_lives = 5;
 		uint16_t kara_lives = 2;
@@ -269,10 +269,12 @@ void menu()
 {
 	fillRectangle(0,0,128,160,0);
 	
+	//Line Border:
 	drawLine(1, 0, 127, 0, RGBToWord(0xff, 0xff, 0) );
 	drawLine(127, 0, 127, 100, RGBToWord(0xff, 0xff, 0) );
 	drawLine(127, 100, 1, 100, RGBToWord(0xff, 0xff, 0) );
 	drawLine(1, 100, 1, 0, RGBToWord(0xff, 0xff, 0) );
+
 	printTextX2("Drenok", 5, 10, RGBToWord(0xff, 0xff, 0), 0);
 	printTextX2("Onslaught", 5, 30, RGBToWord(0xff, 0xff, 0), 0);
 	printTextX2("Press down", 5, 60, RGBToWord(0xff, 0xff, 0), 0);
@@ -327,9 +329,9 @@ void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_directi
 		//When bullet shoots alien
 		if (isInside(*targetx,*targety,12,16,x,y))
 		{
-			fillRectangle(*targetx,*targety,16,13,0);
-			*targetx = 0;
-			*targety = 10;
+			fillRectangle(*targetx,*targety,16,13,0);//erase alien
+			*targetx = 0;//Put the alien back to top left of screen
+			*targety = 10;//Put the alien back to top left of screen
 			*target_direction = 1;
 			*target_speed = *target_speed + 1;
 			*score = *score + 1;
@@ -338,7 +340,7 @@ void shoot(uint16_t x, uint16_t *targetx, uint16_t *targety, int *target_directi
 
 		if (isInside(100, 0, 12, 16, x, y ) || isInside(110, 0, 12, 16, x, y ))//If bullet is inside same coordinates as hearts
 		{
-			showHearts(kara_lives);//Redraw hearts to stop bullet erasing:
+			showHearts(kara_lives);//Redraw hearts to stop bullet erasing
 		}
 
 		 if(*alien_lives==0)
@@ -369,8 +371,9 @@ void alienMove(uint16_t *targetx, uint16_t *targety, int *target_direction, int 
 	{
 		*target_direction = -(*target_direction);//Change/Maintain target direction
 		*targety = *targety + *target_speed + 13;
-		if (*targety > 130) 
+		if (*targety > 130)//When alien reaches bottom
 		{
+			//Puts alien back to top of screen:
 			*targetx = 0;
 			*targety = 10;
 			*target_direction = 1;
